@@ -1,11 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""quantulum classes."""
+# coding=utf-8
 
 
-###############################################################################
-class Quantity(object):
+class Quantity:
     """Class for a quantity (e.g. "4.2 gallons")."""
 
     def __init__(self, value=None, unit=None, surface=None, span=None,
@@ -21,7 +17,7 @@ class Quantity(object):
         """Representation method."""
         msg = u'Quantity(%g, "%s")'
         msg = msg % (self.value, self.unit.name)
-        return msg.encode('utf-8')
+        return msg
 
     def __eq__(self, other):
         """Equality method."""
@@ -35,8 +31,7 @@ class Quantity(object):
         return not self.__eq__(other)
 
 
-###############################################################################
-class Unit(object):
+class Unit:
     """Class for a unit (e.g. "gallon")."""
 
     def __init__(self, name=None, surfaces=None, entity=None, uri=None,
@@ -53,7 +48,7 @@ class Unit(object):
         """Representation method."""
         msg = u'Unit(name="%s", entity=Entity("%s"), uri=%s)'
         msg = msg % (self.name, self.entity.name, self.uri)
-        return msg.encode('utf-8')
+        return msg
 
     def __eq__(self, other):
         """Equality method."""
@@ -67,8 +62,7 @@ class Unit(object):
         return not self.__eq__(other)
 
 
-###############################################################################
-class Entity(object):
+class Entity:
     """Class for an entity (e.g. "volume")."""
 
     def __init__(self, name=None, dimensions=None, uri=None):
@@ -81,7 +75,7 @@ class Entity(object):
         """Representation method."""
         msg = u'Entity(name="%s", uri=%s)'
         msg = msg % (self.name, self.uri)
-        return msg.encode('utf-8')
+        return msg
 
     def __eq__(self, other):
         """Equality method."""

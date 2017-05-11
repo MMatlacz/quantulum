@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 """quantulum setup file."""
+from __future__ import print_function
 
 import sys
 
 try:
     from setuptools import setup
 except ImportError:
-    print 'Please install or upgrade setuptools or pip to continue'
+    print('Please install or upgrade setuptools or pip to continue')
     sys.exit(1)
 
 import quantulum
@@ -30,7 +31,7 @@ setup(
     keywords=['information extraction', 'quantities', 'units', 'measurements',
               'nlp', 'natural language processing', 'text mining',
               'text processing'],
-    install_requires=['inflect', 'stemming', 'wikipedia'],
+    install_requires=['inflect', 'stemming', 'wikipedia', 'sklearn'],
     classifiers=['Intended Audience :: Developers',
                  'Intended Audience :: Science/Research',
                  'Operating System :: MacOS :: MacOS X',

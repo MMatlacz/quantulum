@@ -1,3 +1,4 @@
+# coding=utf-8
 """quantulum init."""
 
 VERSION = (0, 1, 16)

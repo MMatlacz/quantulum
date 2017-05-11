@@ -1,22 +1,20 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """quantulum parser."""
 
 # Standard library
-import re
 import logging
-from fractions import Fraction
+import re
 from collections import defaultdict
+from fractions import Fraction
 
+import quantulum.classes as c
+import quantulum.classifier as clf
 # Quantulum
-from . import load as l
-from . import regex as r
-from . import classes as c
-from . import classifier as clf
+import quantulum.load as l
+import quantulum.regex as r
 
 
-###############################################################################
 def clean_surface(surface, span):
     """Remove spurious characters from a quantity's surface."""
     surface = surface.replace('-', ' ')
@@ -41,15 +39,14 @@ def clean_surface(surface, span):
         return None, None
 
     split = surface.lower().split()
-    if split[0] in ['one', 'a', 'an'] and len(split) > 1 and split[1] in \
-            r.UNITS + r.TENS:
-        span = (span[0] + len(surface.split()[0]) + 1, span[1])
-        surface = ' '.join(surface.split()[1:])
+    if split[0] in ['one', 'a', 'an'] and len(split) > 1:
+        if split[1] in r.UNITS + r.TENS:
+            span = (span[0] + len(surface.split()[0]) + 1, span[1])
+            surface = ' '.join(surface.split()[1:])
 
     return surface, span
 
 
-###############################################################################
 def extract_spellout_values(text):
     """Convert spelled out numbers in a given text to digits."""
     values = []
@@ -69,17 +66,16 @@ def extract_spellout_values(text):
                 curr = 0.0
         values.append({'old_surface': surface,
                        'old_span': span,
-                       'new_surface': unicode(result + curr)})
+                       'new_surface': str(result + curr)})
 
     for item in re.finditer(r'\d+(,\d{3})+', text):
         values.append({'old_surface': item.group(0),
                        'old_span': item.span(),
-                       'new_surface': unicode(item.group(0).replace(',', ''))})
+                       'new_surface': str(item.group(0).replace(',', ''))})
 
     return sorted(values, key=lambda x: x['old_span'][0])
 
 
-###############################################################################
 def substitute_values(text, values):
     """Convert spelled out numbers in a given text to digits."""
     shift, final_text, shifts = 0, text, defaultdict(int)
@@ -97,25 +93,23 @@ def substitute_values(text, values):
     return final_text, shifts
 
 
-###############################################################################
 def callback(pattern):
     """Regex callback function."""
     return ' %s' % (r.UNI_FRAC[pattern.group(0)])
 
 
-###############################################################################
 def get_values(item):
     """Extract value from regex hit."""
     fracs = r'|'.join(r.UNI_FRAC)
 
     value = item.group(2)
-    value = re.sub(ur'(?<=\d)(%s)10' % r.MULTIPLIERS, 'e', value)
+    value = re.sub(r'(?<=\d)(%s)10' % r.MULTIPLIERS, 'e', value)
     value = re.sub(fracs, callback, value, re.IGNORECASE)
     value = re.sub(' +', ' ', value)
 
-    range_separator = re.findall(ur'\d+ ?(-|and|(?:- ?)?to) ?\d', value)
-    uncer_separator = re.findall(ur'\d+ ?(\+/-|±) ?\d', value)
-    fract_separator = re.findall(ur'\d+/\d+', value)
+    range_separator = re.findall(r'\d+ ?(-|and|(?:- ?)?to) ?\d', value)
+    uncer_separator = re.findall(r'\d+ ?(\+/-|±) ?\d', value)
+    fract_separator = re.findall(r'\d+/\d+', value)
 
     uncertainty = None
     if range_separator:
@@ -140,7 +134,6 @@ def get_values(item):
     return uncertainty, values
 
 
-###############################################################################
 def build_unit_name(dimensions):
     """Build the name of the unit from its dimensions."""
     name = ''
@@ -166,7 +159,6 @@ def build_unit_name(dimensions):
     return name
 
 
-###############################################################################
 def get_unit_from_dimensions(dimensions, text):
     """Reconcile a unit based on its dimensionality."""
     key = l.get_key_from_dimensions(dimensions)
@@ -182,7 +174,6 @@ def get_unit_from_dimensions(dimensions, text):
     return unit
 
 
-###############################################################################
 def get_entity_from_dimensions(dimensions, text):
     """
     Infer the underlying entity of a unit (e.g. "volume" for "m^3").
@@ -207,7 +198,6 @@ def get_entity_from_dimensions(dimensions, text):
     return ent
 
 
-###############################################################################
 def parse_unit(item, group, slash):
     """Parse surface and power from unit text."""
     surface = item.group(group).replace('.', '')
@@ -234,7 +224,6 @@ def parse_unit(item, group, slash):
     return surface, new_power
 
 
-###############################################################################
 def get_unit(item, text):
     """Extract unit from regex hit."""
     group_units = [1, 4, 6, 8, 10]
@@ -254,7 +243,10 @@ def get_unit(item, text):
                 if clf.USE_CLF:
                     base = clf.disambiguate_unit(surface, text).name
                 else:
-                    base = l.UNITS[surface][0].name
+                    if l.UNITS[surface]:
+                        base = l.UNITS[surface][0].name
+                    else:
+                        return l.NAMES['dimensionless']
                 dimensions += [{'base': base, 'power': power}]
             elif not slash:
                 slash = any(i in item.group(group) for i in [u'/', u' per '])
@@ -267,7 +259,6 @@ def get_unit(item, text):
     return unit
 
 
-###############################################################################
 def get_surface(shifts, orig_text, item, text):
     """Extract surface from regex hit."""
     span = item.span()
@@ -289,7 +280,6 @@ def get_surface(shifts, orig_text, item, text):
     return surface, real_span
 
 
-###############################################################################
 def is_quote_artifact(orig_text, span):
     """Distinguish between quotes and units."""
     res = False
@@ -302,7 +292,6 @@ def is_quote_artifact(orig_text, span):
     return res
 
 
-###############################################################################
 def build_quantity(orig_text, text, item, values, unit, surface, span, uncert):
     """Build a Quantity object out of extracted information."""
     # Discard irrelevant txt2float extractions, cardinal numbers, codes etc.
@@ -315,7 +304,7 @@ def build_quantity(orig_text, text, item, values, unit, surface, span, uncert):
 
     # Usually "$3T" does not stand for "dollar tesla"
     elif unit.entity.dimensions and \
-            unit.entity.dimensions[0]['base'] == 'currency':
+                    unit.entity.dimensions[0]['base'] == 'currency':
         if len(unit.dimensions) > 1:
             try:
                 suffix = re.findall(r'\d(K|M|B|T)\b(.*?)$', surface)[0]
@@ -366,7 +355,7 @@ def build_quantity(orig_text, text, item, values, unit, surface, span, uncert):
         logging.debug(u'\tCorrect for quotes')
 
     elif re.search(r' time$', surface) and len(unit.dimensions) > 1 and \
-            unit.dimensions[-1]['base'] == 'count':
+                    unit.dimensions[-1]['base'] == 'count':
         unit = get_unit_from_dimensions(unit.dimensions[:-1], orig_text)
         surface = surface[:-5]
         span = (span[0], span[1] - 5)
@@ -384,10 +373,9 @@ def build_quantity(orig_text, text, item, values, unit, surface, span, uncert):
     return objs
 
 
-###############################################################################
 def clean_text(text):
     """Clean text before parsing."""
-    # Replace a few nasty unicode characters with their ASCII equivalent
+    # Replace a few nasty str characters with their ASCII equivalent
     maps = {u'×': u'x', u'–': u'-', u'−': '-'}
     for element in maps:
         text = text.replace(element, maps[element])
@@ -400,10 +388,9 @@ def clean_text(text):
     return text
 
 
-###############################################################################
 def parse(text, verbose=False):
     """Extract all quantities from unstructured text."""
-    log_format = ('%(asctime)s --- %(message)s')
+    log_format = '%(asctime)s --- %(message)s'
     logging.basicConfig(format=log_format)
     root = logging.getLogger()
 
@@ -413,15 +400,14 @@ def parse(text, verbose=False):
         logging.debug(u'Verbose mode')
 
     if isinstance(text, str):
-        text = text.decode('utf-8')
-        logging.debug(u'Converted string to unicode (assume utf-8 encoding)')
+        logging.debug(u'Converted string to str (assume utf-8 encoding)')
 
     orig_text = text
     logging.debug(u'Original text: "%s"', orig_text)
 
     text = clean_text(text)
-    values = extract_spellout_values(text)
-    text, shifts = substitute_values(text, values)
+    spellout_values = extract_spellout_values(text)
+    text, shifts = substitute_values(text, spellout_values)
 
     quantities = []
     for item in r.REG_DIM.finditer(text):
@@ -434,6 +420,8 @@ def parse(text, verbose=False):
             uncert, values = get_values(item)
         except ValueError as err:
             logging.debug(u'Could not parse quantity: %s', err)
+            uncert = None
+            values = None
 
         unit = get_unit(item, text)
         surface, span = get_surface(shifts, orig_text, item, text)
@@ -448,18 +436,15 @@ def parse(text, verbose=False):
     return quantities
 
 
-###############################################################################
 def inline_parse(text, verbose=False):
     """Extract all quantities from unstructured text."""
-    if isinstance(text, str):
-        text = text.decode('utf-8')
 
     parsed = parse(text, verbose=verbose)
 
     shift = 0
     for quantity in parsed:
         index = quantity.span[1] + shift
-        to_add = u' {' + unicode(quantity) + u'}'
+        to_add = u' {' + str(quantity) + u'}'
         text = text[0:index] + to_add + text[index:]
         shift += len(to_add)
 

@@ -1,25 +1,23 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """quantulum unit and entity loading functions."""
 
 # Standard library
-import os
 import json
+import os
 from collections import defaultdict
 
 # Dependencies
 import inflect
 
 # Quantulum
-from . import classes as c
+import quantulum.classes as c
 
 TOPDIR = os.path.dirname(__file__) or "."
 
 PLURALS = inflect.engine()
 
 
-###############################################################################
 def get_key_from_dimensions(dimensions):
     """
     Get a key for DERIVED_UNI or DERIVED_ENT.
@@ -30,7 +28,6 @@ def get_key_from_dimensions(dimensions):
     return tuple(tuple(i.items()) for i in dimensions)
 
 
-###############################################################################
 def get_dimension_permutations(entities, dimensions):
     """Get all possible dimensional definitions for an entity."""
     new_dimensions = defaultdict(int)
@@ -39,12 +36,12 @@ def get_dimension_permutations(entities, dimensions):
         if new:
             for new_item in new:
                 new_dimensions[new_item['base']] += new_item['power'] * \
-                                                 item['power']
+                                                    item['power']
         else:
             new_dimensions[item['base']] += item['power']
 
-    final = [[{'base': i[0], 'power': i[1]} for i in new_dimensions.items()]]
-    final.append(dimensions)
+    final = [[{'base': i[0], 'power': i[1]} for i in new_dimensions.items()],
+             dimensions]
     final = [sorted(i, key=lambda x: x['base']) for i in final]
 
     candidates = []
@@ -55,7 +52,6 @@ def get_dimension_permutations(entities, dimensions):
     return candidates
 
 
-###############################################################################
 def load_entities():
     """Load entities from JSON file."""
     path = os.path.join(TOPDIR, 'entities.json')
@@ -83,10 +79,10 @@ def load_entities():
 
     return entities, dimensions_ent
 
+
 ENTITIES, DERIVED_ENT = load_entities()
 
 
-###############################################################################
 def get_dimensions_units(names):
     """Create dictionary of unit dimensions."""
     dimensions_uni = {}
@@ -109,14 +105,13 @@ def get_dimensions_units(names):
     return dimensions_uni
 
 
-###############################################################################
 def load_units():
     """Load units from JSON file."""
     names = {}
     lowers = defaultdict(list)
     symbols = defaultdict(list)
     surfaces = defaultdict(list)
-    for unit in json.load(open(os.path.join(TOPDIR, 'units.json'))):
+    for unit in json.load(open(os.path.join(TOPDIR, 'units.json'), encoding='utf-8')):
 
         try:
             assert unit['name'] not in names
@@ -158,5 +153,6 @@ def load_units():
     dimensions_uni = get_dimensions_units(names)
 
     return names, surfaces, lowers, symbols, dimensions_uni
+
 
 NAMES, UNITS, LOWER_UNITS, SYMBOLS, DERIVED_UNI = load_units()

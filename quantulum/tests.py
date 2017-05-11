@@ -4,25 +4,24 @@
 """quantulum tests."""
 
 # Standard library
+import json
 import os
 import re
-import json
 import unittest
 
 # Dependencies
 import wikipedia
 
+from quantulum import classes
 # Quantulum
-from . import load as l
-from . import parser as p
-from . import classes as c
+from quantulum import load
+from quantulum import parser
 
 COLOR1 = '\033[94m%s\033[0m'
 COLOR2 = '\033[91m%s\033[0m'
 TOPDIR = os.path.dirname(__file__) or "."
 
 
-###############################################################################
 def embed_text(quants, beg_char, chunk, content):
     """Embed quantities in text."""
     if quants:
@@ -41,7 +40,6 @@ def embed_text(quants, beg_char, chunk, content):
     return text, end_char
 
 
-###############################################################################
 def wiki_test(page='CERN'):
     """Download a wikipedia page and test the parser on its content.
 
@@ -51,77 +49,73 @@ def wiki_test(page='CERN'):
         Herschel_Space_Observatory
     """
     content = wikipedia.page(page).content
-    parsed = p.parse(content)
+    parsed = parser.parse(content)
     parts = int(round(len(content) * 1.0 / 1000))
 
-    print
     end_char = 0
     for num, chunk in enumerate(range(parts)):
         _ = os.system('clear')
-        print
         quants = [j for j in parsed if chunk * 1000 < j.span[0] < (chunk + 1) *
                   1000]
         beg_char = max(chunk * 1000, end_char)
         text, end_char = embed_text(quants, beg_char, chunk, content)
-        print COLOR2 % text
-        print
+        print(COLOR2 % text)
         try:
-            _ = raw_input('--------- End part %d of %d\n' % (num + 1, parts))
+            _ = input('--------- End part %d of %d\n' % (num + 1, parts))
         except (KeyboardInterrupt, EOFError):
             return
 
 
-###############################################################################
 def get_quantity(test, item):
     """Build a single quantity for the test."""
     try:
-        unit = l.NAMES[item['unit']]
+        unit = load.NAMES[item['unit']]
     except KeyError:
         try:
             entity = item['entity']
         except KeyError:
-            print ('Could not find %s, provide "dimensions" and'
-                   ' "entity"' % item['unit'])
+            print('Could not find %s, provide "dimensions" and'
+                  ' "entity"' % item['unit'])
             return
         if entity == 'unknown':
-            dimensions = [{'base': l.NAMES[i['base']].entity.name,
-                          'power': i['power']} for i in
+            dimensions = [{'base': load.NAMES[i['base']].entity.name,
+                           'power': i['power']} for i in
                           item['dimensions']]
-            entity = c.Entity(name='unknown', dimensions=dimensions)
-        elif entity in l.ENTITIES:
-            entity = l.ENTITIES[entity]
+            entity = classes.Entity(name='unknown', dimensions=dimensions)
+        elif entity in load.ENTITIES:
+            entity = load.ENTITIES[entity]
         else:
-            print ('Could not find %s, provide "dimensions" and'
-                   ' "entity"' % item['unit'])
+            print('Could not find %s, provide "dimensions" and'
+                  ' "entity"' % item['unit'])
             return
-        unit = c.Unit(name=item['unit'],
-                      dimensions=item['dimensions'],
-                      entity=entity)
+        unit = classes.Unit(name=item['unit'],
+                            dimensions=item['dimensions'],
+                            entity=entity)
     try:
-        span = re.finditer(re.escape(item['surface']),
-                           test['req']).next().span()
+        span = next(
+            re.finditer(re.escape(item['surface']), test['req'])).span()
     except StopIteration:
-        print 'Surface mismatch for "%s"' % test['req']
+        print('Surface mismatch for "%s"' % test['req'])
         return
 
     uncert = None
     if 'uncertainty' in item:
         uncert = item['uncertainty']
 
-    quantity = c.Quantity(value=item['value'],
-                          unit=unit,
-                          surface=item['surface'],
-                          span=span,
-                          uncertainty=uncert)
+    quantity = classes.Quantity(value=item['value'],
+                                unit=unit,
+                                surface=item['surface'],
+                                span=span,
+                                uncertainty=uncert)
 
     return quantity
 
 
-###############################################################################
-def load_tests():
+def load_tests_from_json():
     """Load all tests from tests.json."""
     path = os.path.join(TOPDIR, 'tests.json')
-    tests = json.load(open(path))
+    with open(path, encoding='utf-8') as f:
+        tests = json.load(f)
 
     for test in tests:
         res = []
@@ -135,22 +129,28 @@ def load_tests():
     return tests
 
 
-###############################################################################
 class EndToEndTests(unittest.TestCase):
     """Test suite for the quantulum project."""
 
     def test_load_tests(self):
         """Test for tests.load_test() function."""
-        self.assertFalse(load_tests() is None)
+        self.assertFalse(load_tests_from_json() is None)
 
     def test_parse(self):
+        result = {'passed': 0, 'not': 0}
+
         """Test for parser.parse() function."""
-        all_tests = load_tests()
+        all_tests = load_tests_from_json()
         for test in sorted(all_tests, key=lambda x: len(x['req'])):
-            self.assertEqual(p.parse(test['req']), test['res'])
+            try:
+                self.assertEqual(parser.parse(test['req']),
+                                 test['res'])
+            except AssertionError:
+                result['not'] = result['not'] + 1
+            result['passed'] = result['passed'] + 1
+        print("Passed: {}, not passed: {}".format(result['passed'],
+                                                  result['not']))
 
 
-###############################################################################
 if __name__ == '__main__':
-
     unittest.main()
